@@ -209,6 +209,7 @@ class FileRepository:
         existing_file = self._files.get(file_path)
         if not existing_file or refresh or from_origin:
             full_file_path = os.path.join(self._repo_path, file_path)
+            # full_file_path = os.path.abspath(file_path)
             if not os.path.exists(full_file_path):
                 logger.warning(f"File not found: {full_file_path}")
                 return None

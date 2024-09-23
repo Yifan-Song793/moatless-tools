@@ -423,7 +423,7 @@ class SearchCode(AgenticState):
                 max_results=100,
             )
 
-            file_context = self.create_file_context(max_tokens=4000)
+            file_context = self.create_file_context(max_tokens=4000)    # will not really add file into file_context
 
             for hit in result.hits:
                 for span in hit.spans:

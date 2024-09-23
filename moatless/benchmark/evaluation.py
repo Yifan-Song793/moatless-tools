@@ -14,6 +14,7 @@ import litellm
 import pandas as pd
 from tqdm.auto import tqdm
 
+from moatless.index import IndexSettings
 from moatless.benchmark.report_v2 import to_result, generate_md_report
 from moatless.trajectory import Trajectory
 from moatless.transition_rules import TransitionRules
@@ -73,6 +74,7 @@ TEST_SUBSET = [
 class Evaluation:
     def __init__(
         self,
+        index_settings: IndexSettings,
         index_store_dir: str,
         repo_base_dir: str,
         evaluations_dir: str,
@@ -201,7 +203,7 @@ class Evaluation:
         trajectory = self._evaluate_instance(instance)
         return to_result(instance, trajectory, self.report)
 
-    def _evaluate_instance(self, instance: dict, retry: bool = False) -> Trajectory:
+    def _evaluate_instance(self, instance: dict, retry: bool = True) -> Trajectory:
         instance_id = instance["instance_id"]
         trajectory_path = os.path.join(self.trajectory_dir, f"{instance_id}.json")
         prompt_log_dir = os.path.join(self.logs_dir, f"{instance_id}")
@@ -212,7 +214,7 @@ class Evaluation:
             # TODO: Retry when failed or not finished?
             return Trajectory.load(trajectory_path)
 
-        repo_dir = setup_swebench_repo(instance)
+        repo_dir = setup_swebench_repo(instance, repo_base_dir=self.repo_base_dir)    # clone the repo and checkout to base commit
         persist_dir = os.path.join(self.index_store_dir, get_repo_dir_name(instance_id))
         workspace = Workspace.from_dirs(
             repo_path=repo_dir, index_dir=persist_dir, max_file_context_tokens=16000
@@ -446,7 +448,7 @@ class Evaluation:
             if not trajectory:
                 continue
 
-            result, transition_result = to_result(instance, trajectory, report=self.report)
+            result = to_result(instance, trajectory, report=self.report)
 
             sum_duration += result["duration"]
             sum_total_cost += result["total_cost"]
@@ -484,7 +486,7 @@ class Evaluation:
             prediction = {
                 "model_name_or_path": self.evaluation_name,
                 "instance_id": instance["instance_id"],
-                "model_patch": trajectory["info"].get("submission", ""),
+                "model_patch": trajectory.info.get("submission", ""),
             }
 
             with open(self.predictions_path, "a") as file:

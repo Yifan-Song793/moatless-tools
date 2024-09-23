@@ -141,7 +141,7 @@ class PlanToCode(AgenticState):
                 trigger="reject", output={"message": action.reject}
             )
 
-        elif action.file_path and action.span_id:
+        elif action.file_path and action.span_id:   # action.action == "modify"
             return self._request_for_change(action)
 
         return ActionResponse.retry(

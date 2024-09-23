@@ -434,62 +434,64 @@ class AgenticLoop:
             )
 
             return action_request, usage
-
-        if self.state.action_type() is None:
-            completion_response = litellm.completion(
-                model=self.state.model,
-                max_tokens=self.state.max_tokens,
-                temperature=self.state.temperature,
-                stop=self.state.stop_words(),
-                metadata=metadata,
-                messages=messages,
-            )
-            action_request = Content(
-                content=completion_response.choices[0].message.content
-            )
+        
         else:
-            client = instructor.from_litellm(
-                litellm.completion, mode=self.instructor_mode
-            )
+            if self.state.action_type() is None:
+                completion_response = litellm.completion(
+                    model=self.state.model,
+                    max_tokens=self.state.max_tokens,
+                    temperature=self.state.temperature,
+                    stop=self.state.stop_words(),
+                    metadata=metadata,
+                    messages=messages,
+                )
+                action_request = Content(
+                    content=completion_response.choices[0].message.content
+                )
+            else:
+                # instructor to generate JSON style action
+                client = instructor.from_litellm(
+                    litellm.completion, mode=self.instructor_mode
+                )
+
+                try:
+                    action_request, completion_response = (
+                        client.chat.completions.create_with_completion(
+                            model=self.state.model,
+                            max_tokens=self.state.max_tokens,
+                            temperature=self.state.temperature,
+                            stop=self.state.stop_words(),
+                            response_model=self.state.action_type(),
+                            metadata=metadata,
+                            messages=messages,
+                        )
+                    )
+                except Exception as e:
+                    self._log_prompt(messages, error=traceback.format_exc())
+                    raise e
 
             try:
-                action_request, completion_response = (
-                    client.chat.completions.create_with_completion(
-                        model=self.state.model,
-                        max_tokens=self.state.max_tokens,
-                        temperature=self.state.temperature,
-                        stop=self.state.stop_words(),
-                        response_model=self.state.action_type(),
-                        metadata=metadata,
-                        messages=messages,
-                    )
+                cost = completion_cost(
+                    completion_response=completion_response,
+                    model=self.state.model,
                 )
             except Exception as e:
-                self._log_prompt(messages, error=traceback.format_exc())
-                raise e
+                self.log_info(f"Error calculating completion cost: {e}")
+                cost = 0
 
-        try:
-            cost = completion_cost(
-                completion_response=completion_response,
-                model=self.state.model,
+            self._log_prompt(
+                messages, [completion_response.choices[0].message.model_dump()], error=None
             )
-        except Exception as e:
-            self.log_info(f"Error calculating completion cost: {e}")
-            cost = 0
-
-        self._log_prompt(
-            messages, [completion_response.choices[0].message.model_dump()], error=None
-        )
-        prompt_tokens = completion_response.get("usage", {}).get("prompt_tokens", 0)
-        completion_tokens = completion_response.get("usage", {}).get(
-            "completion_tokens", 0
-        )
-        usage = Usage(
-            completion_cost=cost,
-            completion_tokens=completion_tokens,
-            prompt_tokens=prompt_tokens,
-        )
-        return action_request, usage
+            prompt_tokens = completion_response.get("usage", {}).get("prompt_tokens", 0)
+            completion_tokens = completion_response.get("usage", {}).get(
+                "completion_tokens", 0
+            )
+            usage = Usage(
+                completion_cost=cost,
+                completion_tokens=completion_tokens,
+                prompt_tokens=prompt_tokens,
+            )
+            return action_request, usage
     
     def state_count(self, state: AgenticState | None = None) -> int:
         if not state:

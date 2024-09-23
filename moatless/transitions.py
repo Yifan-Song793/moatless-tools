@@ -42,11 +42,16 @@ logger = logging.getLogger(__name__)
 
 
 def code_transitions(
+    model: Optional[str] = None,
     global_params: Optional[dict] = None,
     state_params: Optional[dict] = None,
     max_prompt_file_tokens: Optional[int] = 16000,
     max_tokens_in_edit_prompt: Optional[int] = 500,
 ) -> TransitionRules:
+    global_params = global_params or {}
+    if model is not None:
+        global_params["model"] = model
+
     state_params = state_params or {}
     state_params.setdefault(
         PlanToCode,
@@ -57,7 +62,7 @@ def code_transitions(
     )
 
     return TransitionRules(
-        global_params=global_params or {},
+        global_params=global_params,
         state_params=state_params,
         initial_state=PlanToCode,
         transition_rules=CODE_TRANSITIONS,
@@ -133,8 +138,8 @@ def search_transitions(
     return TransitionRules(
         global_params=global_params,
         state_params=state_params,
-        initial_state=SearchCode,
         transition_rules=[
+            TransitionRule(source=Pending, dest=SearchCode, trigger="init"),
             TransitionRule(source=SearchCode, dest=IdentifyCode, trigger="did_search"),
             TransitionRule(source=SearchCode, dest=Finished, trigger="finish"),
             TransitionRule(source=IdentifyCode, dest=SearchCode, trigger="search"),
@@ -191,6 +196,7 @@ def search_and_code_transitions(
         state_params.setdefault(
             PlanToCode, {"max_tokens_in_edit_prompt": max_tokens_in_edit_prompt}
         )
+    # just merge search transitions with code transitions: replace "Finished" state to "PlanToCode" in search transitions
     return TransitionRules(
         global_params=global_params,
         state_params=state_params,
@@ -201,12 +207,7 @@ def search_and_code_transitions(
             TransitionRule(source=IdentifyCode, dest=SearchCode, trigger="search"),
             TransitionRule(source=IdentifyCode, dest=DecideRelevance, trigger="finish"),
             TransitionRule(source=DecideRelevance, dest=SearchCode, trigger="search"),
-            TransitionRule(
-                source=DecideRelevance,
-                dest=PlanToCode,
-                trigger="finish",
-                exclude_fields={"message"},
-            ),
+            TransitionRule(source=DecideRelevance, dest=PlanToCode, trigger="finish", exclude_fields={"message"}),
         ]
         + CODE_TRANSITIONS,
     )

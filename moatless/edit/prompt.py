@@ -6,6 +6,17 @@ The files relevant to the issue is provided in the tag <file_context>.
 To get started, carefully review the issue and the file context to understand the changes that need to be made.
 """
 
+SELECT_SPAN_SYSTEM_PROMPT = """
+The code is separated into code spans; you can update one span at a time.
+Before each code change, you first need to request permission to make the change.
+You do this by using the `ApplyChange` function, which will verify the change and if approved it will do the change and return a git diff and the updated file context.
+
+When requesting permission for a change, include the following details:
+
+ * The instructions of the specific change you intend to make.
+ * The code span you intend to update.
+"""
+
 CODER_FINAL_SYSTEM_PROMPT = """
 After receiving the git diff with the updated code, confirm the changes and proceed to the next instruction if applicable.
 
@@ -19,17 +30,6 @@ IMPORTANT:
  * DO NOT suggest code reviews! 
  * Tests are not in scope. Do not search for tests or suggest writing tests.
  * When you are confident that all changes are correct, you can finish the task without further verification.
-"""
-
-SELECT_SPAN_SYSTEM_PROMPT = """
-The code is separated into code spans; you can update one span at a time.
-Before each code change, you first need to request permission to make the change.
-You do this by using the `ApplyChange` function, which will verify the change and if approved it will do the change and return a git diff and the updated file context.
-
-When requesting permission for a change, include the following details:
-
- * The instructions of the specific change you intend to make.
- * The code span you intend to update.
 """
 
 SELECT_LINES_SYSTEM_PROMPT = """You can update one section of the code at a time.

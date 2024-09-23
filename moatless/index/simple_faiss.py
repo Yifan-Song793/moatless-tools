@@ -265,7 +265,7 @@ class SimpleFaissVectorStore(BasePydanticVectorStore):
 
         fs = fs or fsspec.filesystem("file")
         if not fs.exists(persist_dir):
-            raise ValueError(f"No existing index store found at {persist_dir}.")
+            raise FileNotFoundError(f"No existing index store found at {persist_dir}.")
 
         # I don't think FAISS supports fsspec, it requires a path in the SWIG interface
         # TODO: copy to a temp file and load into memory from there
